@@ -1,0 +1,130 @@
+"""
+Country/national-team name translation for the UI (PT-BR and ES).
+
+Only national-team names are translated (club names pass through unchanged,
+since they are not in the lookup table). Keys follow the martj42
+international-results spelling, matching ``flags._ISO2``.
+"""
+from __future__ import annotations
+
+__all__ = ["translate_team"]
+
+_PT: dict[str, str] = {
+    "Mexico": "México", "Canada": "Canadá", "Brazil": "Brasil",
+    "United States": "Estados Unidos", "Germany": "Alemanha",
+    "Netherlands": "Países Baixos", "Belgium": "Bélgica", "Spain": "Espanha",
+    "France": "França", "Argentina": "Argentina", "Portugal": "Portugal",
+    "Czech Republic": "República Tcheca", "South Africa": "África do Sul",
+    "South Korea": "Coreia do Sul", "Bosnia and Herzegovina": "Bósnia e Herzegovina",
+    "Qatar": "Catar", "Switzerland": "Suíça", "Haiti": "Haiti",
+    "Morocco": "Marrocos", "Australia": "Austrália", "Paraguay": "Paraguai",
+    "Turkey": "Turquia", "Curaçao": "Curaçao", "Curacao": "Curaçao",
+    "Ecuador": "Equador", "Ivory Coast": "Costa do Marfim",
+    "Côte d'Ivoire": "Costa do Marfim", "Japan": "Japão", "Sweden": "Suécia",
+    "Tunisia": "Tunísia", "Egypt": "Egito", "Iran": "Irã",
+    "New Zealand": "Nova Zelândia", "Cape Verde": "Cabo Verde",
+    "Saudi Arabia": "Arábia Saudita", "Uruguay": "Uruguai", "Iraq": "Iraque",
+    "Norway": "Noruega", "Senegal": "Senegal", "Algeria": "Argélia",
+    "Austria": "Áustria", "Jordan": "Jordânia", "Colombia": "Colômbia",
+    "DR Congo": "RD Congo", "Uzbekistan": "Uzbequistão", "Croatia": "Croácia",
+    "Ghana": "Gana", "Panama": "Panamá", "Italy": "Itália", "Nigeria": "Nigéria",
+    "Cameroon": "Camarões", "Chile": "Chile", "Peru": "Peru",
+    "Venezuela": "Venezuela", "Bolivia": "Bolívia", "Costa Rica": "Costa Rica",
+    "Honduras": "Honduras", "Jamaica": "Jamaica", "Denmark": "Dinamarca",
+    "Poland": "Polônia", "Serbia": "Sérvia", "Ukraine": "Ucrânia",
+    "Greece": "Grécia", "Hungary": "Hungria", "Romania": "Romênia",
+    "Russia": "Rússia", "Republic of Ireland": "Irlanda", "Ireland": "Irlanda",
+    "Northern Ireland": "Irlanda do Norte", "Finland": "Finlândia",
+    "Iceland": "Islândia", "Slovenia": "Eslovênia", "Slovakia": "Eslováquia",
+    "Bulgaria": "Bulgária", "Israel": "Israel", "Mali": "Mali",
+    "Burkina Faso": "Burquina Fasso", "Zambia": "Zâmbia", "Guinea": "Guiné",
+    "Congo": "Congo", "Angola": "Angola", "Mozambique": "Moçambique",
+    "Kenya": "Quênia", "Uganda": "Uganda", "Tanzania": "Tanzânia",
+    "Zimbabwe": "Zimbábue", "Gabon": "Gabão", "Benin": "Benin",
+    "Mauritania": "Mauritânia", "Madagascar": "Madagascar", "Namibia": "Namíbia",
+    "Equatorial Guinea": "Guiné Equatorial", "Sudan": "Sudão", "Libya": "Líbia",
+    "Togo": "Togo", "China": "China", "China PR": "China", "India": "Índia",
+    "Thailand": "Tailândia", "Vietnam": "Vietnã", "Indonesia": "Indonésia",
+    "Malaysia": "Malásia", "Philippines": "Filipinas",
+    "United Arab Emirates": "Emirados Árabes Unidos", "Bahrain": "Bahrein",
+    "Kuwait": "Kuwait", "Oman": "Omã", "Lebanon": "Líbano", "Syria": "Síria",
+    "Palestine": "Palestina", "Kyrgyzstan": "Quirguistão",
+    "Tajikistan": "Tajiquistão", "Turkmenistan": "Turcomenistão",
+    "North Korea": "Coreia do Norte", "Hong Kong": "Hong Kong",
+    "Guatemala": "Guatemala", "El Salvador": "El Salvador",
+    "Trinidad and Tobago": "Trinidad e Tobago", "Albania": "Albânia",
+    "North Macedonia": "Macedônia do Norte", "Montenegro": "Montenegro",
+    "Kosovo": "Kosovo", "Georgia": "Geórgia", "Armenia": "Armênia",
+    "Azerbaijan": "Azerbaijão", "Kazakhstan": "Cazaquistão", "Belarus": "Belarus",
+    "Estonia": "Estônia", "Latvia": "Letônia", "Lithuania": "Lituânia",
+    "Luxembourg": "Luxemburgo", "Malta": "Malta", "Cyprus": "Chipre",
+    "Faroe Islands": "Ilhas Faroé", "Gibraltar": "Gibraltar", "Andorra": "Andorra",
+    "San Marino": "San Marino", "Liechtenstein": "Liechtenstein",
+    "Moldova": "Moldávia", "England": "Inglaterra", "Scotland": "Escócia",
+    "Wales": "País de Gales",
+}
+
+_ES: dict[str, str] = {
+    "Mexico": "México", "Canada": "Canadá", "Brazil": "Brasil",
+    "United States": "Estados Unidos", "Germany": "Alemania",
+    "Netherlands": "Países Bajos", "Belgium": "Bélgica", "Spain": "España",
+    "France": "Francia", "Argentina": "Argentina", "Portugal": "Portugal",
+    "Czech Republic": "República Checa", "South Africa": "Sudáfrica",
+    "South Korea": "Corea del Sur", "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+    "Qatar": "Catar", "Switzerland": "Suiza", "Haiti": "Haití",
+    "Morocco": "Marruecos", "Australia": "Australia", "Paraguay": "Paraguay",
+    "Turkey": "Turquía", "Curaçao": "Curazao", "Curacao": "Curazao",
+    "Ecuador": "Ecuador", "Ivory Coast": "Costa de Marfil",
+    "Côte d'Ivoire": "Costa de Marfil", "Japan": "Japón", "Sweden": "Suecia",
+    "Tunisia": "Túnez", "Egypt": "Egipto", "Iran": "Irán",
+    "New Zealand": "Nueva Zelanda", "Cape Verde": "Cabo Verde",
+    "Saudi Arabia": "Arabia Saudita", "Uruguay": "Uruguay", "Iraq": "Irak",
+    "Norway": "Noruega", "Senegal": "Senegal", "Algeria": "Argelia",
+    "Austria": "Austria", "Jordan": "Jordania", "Colombia": "Colombia",
+    "DR Congo": "RD Congo", "Uzbekistan": "Uzbekistán", "Croatia": "Croacia",
+    "Ghana": "Ghana", "Panama": "Panamá", "Italy": "Italia", "Nigeria": "Nigeria",
+    "Cameroon": "Camerún", "Chile": "Chile", "Peru": "Perú",
+    "Venezuela": "Venezuela", "Bolivia": "Bolivia", "Costa Rica": "Costa Rica",
+    "Honduras": "Honduras", "Jamaica": "Jamaica", "Denmark": "Dinamarca",
+    "Poland": "Polonia", "Serbia": "Serbia", "Ukraine": "Ucrania",
+    "Greece": "Grecia", "Hungary": "Hungría", "Romania": "Rumania",
+    "Russia": "Rusia", "Republic of Ireland": "Irlanda", "Ireland": "Irlanda",
+    "Northern Ireland": "Irlanda del Norte", "Finland": "Finlandia",
+    "Iceland": "Islandia", "Slovenia": "Eslovenia", "Slovakia": "Eslovaquia",
+    "Bulgaria": "Bulgaria", "Israel": "Israel", "Mali": "Malí",
+    "Burkina Faso": "Burkina Faso", "Zambia": "Zambia", "Guinea": "Guinea",
+    "Congo": "Congo", "Angola": "Angola", "Mozambique": "Mozambique",
+    "Kenya": "Kenia", "Uganda": "Uganda", "Tanzania": "Tanzania",
+    "Zimbabwe": "Zimbabue", "Gabon": "Gabón", "Benin": "Benín",
+    "Mauritania": "Mauritania", "Madagascar": "Madagascar", "Namibia": "Namibia",
+    "Equatorial Guinea": "Guinea Ecuatorial", "Sudan": "Sudán", "Libya": "Libia",
+    "Togo": "Togo", "China": "China", "China PR": "China", "India": "India",
+    "Thailand": "Tailandia", "Vietnam": "Vietnam", "Indonesia": "Indonesia",
+    "Malaysia": "Malasia", "Philippines": "Filipinas",
+    "United Arab Emirates": "Emiratos Árabes Unidos", "Bahrain": "Baréin",
+    "Kuwait": "Kuwait", "Oman": "Omán", "Lebanon": "Líbano", "Syria": "Siria",
+    "Palestine": "Palestina", "Kyrgyzstan": "Kirguistán",
+    "Tajikistan": "Tayikistán", "Turkmenistan": "Turkmenistán",
+    "North Korea": "Corea del Norte", "Hong Kong": "Hong Kong",
+    "Guatemala": "Guatemala", "El Salvador": "El Salvador",
+    "Trinidad and Tobago": "Trinidad y Tobago", "Albania": "Albania",
+    "North Macedonia": "Macedonia del Norte", "Montenegro": "Montenegro",
+    "Kosovo": "Kosovo", "Georgia": "Georgia", "Armenia": "Armenia",
+    "Azerbaijan": "Azerbaiyán", "Kazakhstan": "Kazajistán", "Belarus": "Bielorrusia",
+    "Estonia": "Estonia", "Latvia": "Letonia", "Lithuania": "Lituania",
+    "Luxembourg": "Luxemburgo", "Malta": "Malta", "Cyprus": "Chipre",
+    "Faroe Islands": "Islas Feroe", "Gibraltar": "Gibraltar", "Andorra": "Andorra",
+    "San Marino": "San Marino", "Liechtenstein": "Liechtenstein",
+    "Moldova": "Moldavia", "England": "Inglaterra", "Scotland": "Escocia",
+    "Wales": "Gales",
+}
+
+_TABLES: dict[str, dict[str, str]] = {"pt": _PT, "es": _ES}
+
+
+def translate_team(name: str, lang: str) -> str:
+    """Return the localized country name for ``lang``, or ``name`` unchanged.
+
+    Club names (not in the lookup table) pass through untouched.
+    """
+    return _TABLES.get(lang, {}).get(name, name)

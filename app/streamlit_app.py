@@ -44,8 +44,9 @@ from football_mle.sources import (  # noqa: E402
     recent_seasons,
     world_cup_2026_fixtures,
 )
-from flags import flag_url, with_flag  # noqa: E402
+from flags import flag_url  # noqa: E402
 from i18n import LANGUAGES, make_t  # noqa: E402
+from team_names import translate_team  # noqa: E402
 
 st.set_page_config(page_title="football_mle — Goal prediction", page_icon="⚽", layout="wide")
 
@@ -100,10 +101,11 @@ def simulate_world_cup(window_years: int, model: str, half_life_days: int, n_sim
 # ---------------------------------------------------------------------------
 # Reusable UI components (presentation only; `t` is the translator)
 # ---------------------------------------------------------------------------
-def ratings_section(model_fit: FitResult, t) -> None:
+def ratings_section(model_fit: FitResult, t, lang: str) -> None:
     st.subheader(t("ratings_title"))
     table = model_fit.ratings_table().copy()
     table.insert(0, "flag", table["team"].apply(flag_url))
+    table["team"] = table["team"].apply(lambda tm: translate_team(tm, lang))
     col_table, col_chart = st.columns([1, 1])
     with col_table:
         st.dataframe(
@@ -156,18 +158,20 @@ def score_heatmap(matrix, home: str, away: str, t, max_display: int = 6) -> alt.
     return (heat + text).properties(height=360)
 
 
-def predictor_section(model_fit: FitResult, t, allow_neutral: bool = False, default_neutral: bool = False) -> None:
+def predictor_section(model_fit: FitResult, t, lang: str, allow_neutral: bool = False, default_neutral: bool = False) -> None:
     st.subheader(t("predictor_title"))
     teams = sorted(model_fit.teams)
+    fmt = lambda tm: translate_team(tm, lang)
     c1, c2, c3 = st.columns([2, 2, 1])
-    home = c1.selectbox(t("home_team"), teams, index=0)
-    away = c2.selectbox(t("away_team"), teams, index=min(1, len(teams) - 1))
+    home = c1.selectbox(t("home_team"), teams, index=0, format_func=fmt)
+    away = c2.selectbox(t("away_team"), teams, index=min(1, len(teams) - 1), format_func=fmt)
     neutral = c3.checkbox(t("neutral_venue"), value=default_neutral) if allow_neutral else False
 
     if home == away:
         st.info(t("pick_two"))
         return
 
+    home_disp, away_disp = translate_team(home, lang), translate_team(away, lang)
     prediction = predict_match(model_fit, home, away, max_goals=10, neutral=neutral)
 
     # Show flag images next to team names using st.image (avoids CSP restrictions).
@@ -175,30 +179,30 @@ def predictor_section(model_fit: FitResult, t, allow_neutral: bool = False, defa
     fi1, fi2, _, fi3, fi4, _ = st.columns([0.15, 1.2, 0.3, 0.15, 1.2, 1])
     if fh:
         fi1.image(fh, width=24)
-    fi2.markdown(f"**{home}**")
+    fi2.markdown(f"**{home_disp}**")
     if fa:
         fi3.image(fa, width=24)
-    fi4.markdown(f"**{away}**")
+    fi4.markdown(f"**{away_disp}**")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric(f"1 · {home}", f"{100 * prediction.prob_home:.1f}%")
+    m1.metric(f"1 · {home_disp}", f"{100 * prediction.prob_home:.1f}%")
     m2.metric(f"X · {t('draw')}", f"{100 * prediction.prob_draw:.1f}%")
-    m3.metric(f"2 · {away}", f"{100 * prediction.prob_away:.1f}%")
+    m3.metric(f"2 · {away_disp}", f"{100 * prediction.prob_away:.1f}%")
     m4.metric(
         t("expected_goals"),
         f"{prediction.expected_home_goals:.2f} – {prediction.expected_away_goals:.2f}",
     )
     matrix = score_matrix(model_fit, home, away, max_goals=10, neutral=neutral)
-    st.altair_chart(score_heatmap(matrix, home, away, t), use_container_width=True)
+    st.altair_chart(score_heatmap(matrix, home_disp, away_disp, t), use_container_width=True)
     s = prediction.most_likely_score
-    st.caption(t("most_likely", home=home, hs=s[0], as_=s[1], away=away,
+    st.caption(t("most_likely", home=home_disp, hs=s[0], as_=s[1], away=away_disp,
                  prob=100 * prediction.most_likely_score_prob))
 
 
 # ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
-def club_league_page(t) -> None:
+def club_league_page(t, lang: str) -> None:
     st.sidebar.header(t("club_header"))
     league = st.sidebar.selectbox(t("league"), list_leagues(), index=0)
     n_seasons = st.sidebar.slider(t("seasons"), 1, 4, 2)
@@ -215,12 +219,12 @@ def club_league_page(t) -> None:
         return
 
     st.success(t("success_league", league=league, model=choice, n=len(model_fit.teams)))
-    ratings_section(model_fit, t)
+    ratings_section(model_fit, t, lang)
     st.divider()
-    predictor_section(model_fit, t, allow_neutral=True)
+    predictor_section(model_fit, t, lang, allow_neutral=True)
 
 
-def world_cup_page(t) -> None:
+def world_cup_page(t, lang: str) -> None:
     st.sidebar.header(t("wc_header"))
     window = st.sidebar.slider(t("training_window"), 3, 12, 8)
     model_labels = [t("model_dixon"), t("model_maher")]
@@ -255,6 +259,7 @@ def world_cup_page(t) -> None:
             st.info(t("live_info", played=n_played, total=len(fixtures)))
         st.subheader(t("tournament_probs"))
         top = probs.head(16).copy()
+        top["team"] = top["team"].apply(lambda tm: translate_team(tm, lang))
         chart = (
             alt.Chart(top)
             .mark_bar()
@@ -270,6 +275,7 @@ def world_cup_page(t) -> None:
         st.altair_chart(chart, use_container_width=True)
         show = probs.copy()
         show.insert(0, "flag", show["team"].apply(flag_url))
+        show["team"] = show["team"].apply(lambda tm: translate_team(tm, lang))
         prob_cols = ["p_group_winner", "p_advance", "p_round16", "p_quarterfinal",
                      "p_semifinal", "p_final", "p_champion"]
         for c in prob_cols:
@@ -300,13 +306,13 @@ def world_cup_page(t) -> None:
                     ca, cb = st.columns([0.12, 1])
                     if url:
                         ca.image(url, width=16)
-                    cb.markdown(tm)
+                    cb.markdown(translate_team(tm, lang))
 
     with tab_ratings:
-        ratings_section(model_fit, t)
+        ratings_section(model_fit, t, lang)
 
     with tab_match:
-        predictor_section(model_fit, t, allow_neutral=True, default_neutral=True)
+        predictor_section(model_fit, t, lang, allow_neutral=True, default_neutral=True)
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +330,8 @@ def main() -> None:
         index=_pt_index,
         label_visibility="collapsed",
     )
-    t = make_t(LANGUAGES[lang_name])
+    lang = LANGUAGES[lang_name]
+    t = make_t(lang)
     st.caption(t("subtitle"))
 
     # World Cup 2026 is the default mode (listed first).
@@ -332,9 +339,9 @@ def main() -> None:
     mode = st.sidebar.radio(t("mode"), mode_labels, index=0)
     st.sidebar.divider()
     if mode == mode_labels[0]:
-        world_cup_page(t)
+        world_cup_page(t, lang)
     else:
-        club_league_page(t)
+        club_league_page(t, lang)
 
 
 if __name__ == "__main__":
