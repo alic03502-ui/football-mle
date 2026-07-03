@@ -43,7 +43,7 @@ from football_mle.sources import (  # noqa: E402
     played_matches,
     recent_seasons,
     world_cup_2026_fixtures,
-    world_cup_2026_knockout_fixtures,
+    world_cup_2026_knockout_results,
 )
 from flags import flag_url  # noqa: E402
 from i18n import LANGUAGES, make_t  # noqa: E402
@@ -93,7 +93,7 @@ def world_cup_fixtures() -> pd.DataFrame:
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def world_cup_ko_fixtures() -> pd.DataFrame:
-    return world_cup_2026_knockout_fixtures(load_international())
+    return world_cup_2026_knockout_results()
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -256,7 +256,7 @@ def world_cup_page(t, lang: str) -> None:
 
     with tab_sim:
         ko_fixtures = world_cup_ko_fixtures()
-        n_played_ko = int(ko_fixtures[["home_goals", "away_goals"]].notna().all(axis=1).sum()) if not ko_fixtures.empty else 0
+        n_played_ko = len(ko_fixtures)
         with st.spinner(t("spinner_sim", n=n_sims)):
             probs = simulate_world_cup(window, model, half_life, n_sims, n_played_ko)
         # Relabel with official group letters and flag games already played.

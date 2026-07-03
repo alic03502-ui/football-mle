@@ -11,14 +11,14 @@ import datetime as _dt
 
 import pandas as pd
 
-from ._http import read_csv_url
+from ._http import read_csv_url, read_json_url
 
 __all__ = [
     "INTERNATIONAL_RESULTS_URL",
     "fetch_international_results",
     "played_matches",
     "world_cup_2026_fixtures",
-    "world_cup_2026_knockout_fixtures",
+    "world_cup_2026_knockout_results",
 ]
 
 INTERNATIONAL_RESULTS_URL = (
@@ -100,37 +100,51 @@ def world_cup_2026_fixtures(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=columns).reset_index(drop=True)
 
 
-def world_cup_2026_knockout_fixtures(df: pd.DataFrame) -> pd.DataFrame:
-    """Extract 2026 World Cup knockout-stage fixtures already in the dataset.
+_ESPN_WC_URL = (
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+    "?dates=20260628-20260722&limit=100"
+)
 
-    Iterates all 2026 WC matches in chronological order, tracking how many
-    group-stage appearances each team has logged.  Once both teams in a match
-    have already accumulated ≥ 3 appearances (their full group stage), that
-    match is a knockout fixture.
+# ESPN spells a few teams differently than martj42; normalize to martj42 spelling
+# so results key onto the same team names used everywhere else (model fit, groups).
+_ESPN_NAME_FIX = {
+    "Congo DR": "DR Congo",
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+    "IR Iran": "Iran",
+    "Korea Republic": "South Korea",
+    "USA": "United States",
+    "Cape Verde Islands": "Cape Verde",
+}
 
-    Returns ``date, home, away, neutral, home_goals, away_goals``; goals are
-    the real score for played matches, ``NaN`` for future ones.  Returns an
-    empty DataFrame if no knockout fixtures are in the dataset yet.
+
+def world_cup_2026_knockout_results() -> pd.DataFrame:
+    """Fetch decided 2026 World Cup knockout results from ESPN.
+
+    The martj42 dataset only carries the regulation-time score, which cannot
+    resolve matches decided by penalty shootout (e.g. a 1-1 draw doesn't say
+    who advanced). ESPN's scoreboard exposes a ``winner`` flag per competitor
+    that is correct in every case, including shootouts, so it is used here as
+    the authoritative source for knockout-stage outcomes.
+
+    Returns ``home, away, winner`` for every completed knockout match (empty
+    DataFrame if the round hasn't started yet or the request fails).
     """
-    mask = (df["tournament"] == "FIFA World Cup") & (df["date"].dt.year == 2026)
-    wc = df.loc[mask].sort_values("date")
+    try:
+        data = read_json_url(_ESPN_WC_URL)
+    except Exception:
+        return pd.DataFrame(columns=["home", "away", "winner"])
 
-    appearances: dict[str, int] = {}
-    rows: list[dict[str, object]] = []
-    for _, row in wc.iterrows():
-        home, away = row["home"], row["away"]
-        h_seen = appearances.get(home, 0)
-        a_seen = appearances.get(away, 0)
-        if h_seen >= 3 and a_seen >= 3:
-            rows.append(
-                {
-                    "date": row["date"], "home": home, "away": away,
-                    "neutral": bool(row["neutral"]),
-                    "home_goals": row["home_goals"], "away_goals": row["away_goals"],
-                }
-            )
-        appearances[home] = h_seen + 1
-        appearances[away] = a_seen + 1
+    rows: list[dict[str, str]] = []
+    for event in data.get("events", []):
+        competition = event["competitions"][0]
+        if not competition["status"]["type"].get("completed"):
+            continue
+        competitors = competition["competitors"]
+        home = next(c for c in competitors if c["homeAway"] == "home")
+        away = next(c for c in competitors if c["homeAway"] == "away")
+        home_name = _ESPN_NAME_FIX.get(home["team"]["displayName"], home["team"]["displayName"])
+        away_name = _ESPN_NAME_FIX.get(away["team"]["displayName"], away["team"]["displayName"])
+        winner_name = home_name if home.get("winner") else away_name
+        rows.append({"home": home_name, "away": away_name, "winner": winner_name})
 
-    columns = ["date", "home", "away", "neutral", "home_goals", "away_goals"]
-    return pd.DataFrame(rows if rows else [], columns=columns).reset_index(drop=True)
+    return pd.DataFrame(rows, columns=["home", "away", "winner"])

@@ -382,24 +382,16 @@ def simulate_tournament(
     Otherwise a strength-seeded single-elimination bracket is used as fallback.
 
     ``knockout_fixtures`` is an optional DataFrame with columns
-    ``home, away, home_goals, away_goals`` for knockout matches that have
-    already been played.  Their results are used as fixed outcomes in every
-    simulation (eliminating losers with probability 1).  Matches where the
-    score is a draw are skipped (penalty shootout not recoverable from the
-    score line alone) and will be sampled normally.
+    ``home, away, winner`` for knockout matches that have already been played
+    (``winner`` resolves shootouts too). Their results are used as fixed
+    outcomes in every simulation (eliminating losers with probability 1).
     """
     # Build lookup of already-decided knockout matches: {frozenset(home,away): winner}.
-    # Draws are excluded — penalty result isn't recoverable from the score line alone.
     _known_ko: dict[frozenset, str] = {}
     if knockout_fixtures is not None and not knockout_fixtures.empty:
         for _, row in knockout_fixtures.iterrows():
-            if pd.notna(row.get("home_goals")) and pd.notna(row.get("away_goals")):
-                hg, ag = int(row["home_goals"]), int(row["away_goals"])
-                if hg > ag:
-                    _known_ko[frozenset({row["home"], row["away"]})] = row["home"]
-                elif ag > hg:
-                    _known_ko[frozenset({row["home"], row["away"]})] = row["away"]
-                # hg == ag → penalty shootout, skip (will be sampled)
+            if pd.notna(row.get("winner")):
+                _known_ko[frozenset({row["home"], row["away"]})] = row["winner"]
 
     groups, fixtures_by_group = derive_groups(group_fixtures)
     n_groups = len(groups)
