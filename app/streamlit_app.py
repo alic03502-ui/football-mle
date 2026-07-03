@@ -43,6 +43,7 @@ from football_mle.sources import (  # noqa: E402
     played_matches,
     recent_seasons,
     world_cup_2026_fixtures,
+    world_cup_2026_knockout_fixtures,
 )
 from flags import flag_url  # noqa: E402
 from i18n import LANGUAGES, make_t  # noqa: E402
@@ -91,10 +92,16 @@ def world_cup_fixtures() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def simulate_world_cup(window_years: int, model: str, half_life_days: int, n_sims: int) -> pd.DataFrame:
+def world_cup_ko_fixtures() -> pd.DataFrame:
+    return world_cup_2026_knockout_fixtures(load_international())
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def simulate_world_cup(window_years: int, model: str, half_life_days: int, n_sims: int, n_played_ko: int) -> pd.DataFrame:
     model_fit = fit_international_model(window_years, model, half_life_days)
     fixtures = world_cup_fixtures()
-    result = simulate_tournament(model_fit, fixtures, n_simulations=n_sims, seed=20260611)
+    ko_fixtures = world_cup_ko_fixtures()
+    result = simulate_tournament(model_fit, fixtures, knockout_fixtures=ko_fixtures, n_simulations=n_sims, seed=20260611)
     return result.probabilities
 
 
@@ -248,15 +255,17 @@ def world_cup_page(t, lang: str) -> None:
     )
 
     with tab_sim:
+        ko_fixtures = world_cup_ko_fixtures()
+        n_played_ko = int(ko_fixtures[["home_goals", "away_goals"]].notna().all(axis=1).sum()) if not ko_fixtures.empty else 0
         with st.spinner(t("spinner_sim", n=n_sims)):
-            probs = simulate_world_cup(window, model, half_life, n_sims)
+            probs = simulate_world_cup(window, model, half_life, n_sims, n_played_ko)
         # Relabel with official group letters and flag games already played.
         team_to_letter = {tm: label for label, tms in official_groups(fixtures).items() for tm in tms}
         probs = probs.copy()
         probs["group"] = probs["team"].map(team_to_letter).fillna(probs["group"])
         n_played = int(fixtures[["home_goals", "away_goals"]].notna().all(axis=1).sum())
-        if n_played:
-            st.info(t("live_info", played=n_played, total=len(fixtures)))
+        if n_played or n_played_ko:
+            st.info(t("live_info", played=n_played, total=len(fixtures), ko=n_played_ko))
         st.subheader(t("tournament_probs"))
         top = probs.head(16).copy()
         top["team"] = top["team"].apply(lambda tm: translate_team(tm, lang))

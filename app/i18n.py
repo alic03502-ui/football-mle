@@ -62,7 +62,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tab_ratings": "📊 Ratings",
         "tab_match": "⚔️ Match",
         "tournament_probs": "Tournament probabilities",
-        "live_info": "{played} of {total} group matches already played — the simulation is conditioned on the real results.",
+        "live_info": "{played}/{total} group matches played · {ko} knockout match(es) decided — simulation conditioned on real results; eliminated teams have 0% champion probability.",
         "spinner_sim": "Simulating the tournament {n}×…",
         "pwin_axis": "P(win the World Cup)",
         "wc_caption": (
@@ -130,7 +130,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tab_ratings": "📊 Ratings",
         "tab_match": "⚔️ Jogo",
         "tournament_probs": "Probabilidades do torneio",
-        "live_info": "{played} de {total} jogos da fase de grupos já disputados — a simulação está condicionada nos resultados reais.",
+        "live_info": "{played}/{total} jogos da fase de grupos disputados · {ko} jogo(s) do mata-mata decidido(s) — simulação condicionada nos resultados reais; seleções eliminadas têm 0% de chance.",
         "spinner_sim": "Simulando o torneio {n}×…",
         "pwin_axis": "P(ganhar o Mundial)",
         "wc_caption": (
@@ -199,7 +199,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tab_ratings": "📊 Ratings",
         "tab_match": "⚔️ Partido",
         "tournament_probs": "Probabilidades del torneo",
-        "live_info": "{played} de {total} partidos de la fase de grupos ya jugados — la simulación está condicionada a los resultados reales.",
+        "live_info": "{played}/{total} partidos de fase de grupos jugados · {ko} partido(s) de eliminatorias decidido(s) — simulación condicionada en resultados reales; equipos eliminados tienen 0% de probabilidad.",
         "spinner_sim": "Simulando el torneo {n}×…",
         "pwin_axis": "P(ganar el Mundial)",
         "wc_caption": (

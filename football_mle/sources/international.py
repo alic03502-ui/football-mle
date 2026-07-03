@@ -18,6 +18,7 @@ __all__ = [
     "fetch_international_results",
     "played_matches",
     "world_cup_2026_fixtures",
+    "world_cup_2026_knockout_fixtures",
 ]
 
 INTERNATIONAL_RESULTS_URL = (
@@ -97,3 +98,39 @@ def world_cup_2026_fixtures(df: pd.DataFrame) -> pd.DataFrame:
 
     columns = ["date", "home", "away", "neutral", "home_goals", "away_goals"]
     return pd.DataFrame(rows, columns=columns).reset_index(drop=True)
+
+
+def world_cup_2026_knockout_fixtures(df: pd.DataFrame) -> pd.DataFrame:
+    """Extract 2026 World Cup knockout-stage fixtures already in the dataset.
+
+    Iterates all 2026 WC matches in chronological order, tracking how many
+    group-stage appearances each team has logged.  Once both teams in a match
+    have already accumulated ≥ 3 appearances (their full group stage), that
+    match is a knockout fixture.
+
+    Returns ``date, home, away, neutral, home_goals, away_goals``; goals are
+    the real score for played matches, ``NaN`` for future ones.  Returns an
+    empty DataFrame if no knockout fixtures are in the dataset yet.
+    """
+    mask = (df["tournament"] == "FIFA World Cup") & (df["date"].dt.year == 2026)
+    wc = df.loc[mask].sort_values("date")
+
+    appearances: dict[str, int] = {}
+    rows: list[dict[str, object]] = []
+    for _, row in wc.iterrows():
+        home, away = row["home"], row["away"]
+        h_seen = appearances.get(home, 0)
+        a_seen = appearances.get(away, 0)
+        if h_seen >= 3 and a_seen >= 3:
+            rows.append(
+                {
+                    "date": row["date"], "home": home, "away": away,
+                    "neutral": bool(row["neutral"]),
+                    "home_goals": row["home_goals"], "away_goals": row["away_goals"],
+                }
+            )
+        appearances[home] = h_seen + 1
+        appearances[away] = a_seen + 1
+
+    columns = ["date", "home", "away", "neutral", "home_goals", "away_goals"]
+    return pd.DataFrame(rows if rows else [], columns=columns).reset_index(drop=True)

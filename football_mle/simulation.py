@@ -366,6 +366,7 @@ def simulate_tournament(
     fit_result,
     group_fixtures,
     *,
+    knockout_fixtures=None,
     n_simulations: int = 5000,
     qualifiers_per_group: int = 2,
     best_third_places: int = 8,
@@ -379,7 +380,27 @@ def simulate_tournament(
     present), the knockout bracket follows the official FIFA structure
     (fixed R32 crossings + third-place eligibility slots from Annex C).
     Otherwise a strength-seeded single-elimination bracket is used as fallback.
+
+    ``knockout_fixtures`` is an optional DataFrame with columns
+    ``home, away, home_goals, away_goals`` for knockout matches that have
+    already been played.  Their results are used as fixed outcomes in every
+    simulation (eliminating losers with probability 1).  Matches where the
+    score is a draw are skipped (penalty shootout not recoverable from the
+    score line alone) and will be sampled normally.
     """
+    # Build lookup of already-decided knockout matches: {frozenset(home,away): winner}.
+    # Draws are excluded — penalty result isn't recoverable from the score line alone.
+    _known_ko: dict[frozenset, str] = {}
+    if knockout_fixtures is not None and not knockout_fixtures.empty:
+        for _, row in knockout_fixtures.iterrows():
+            if pd.notna(row.get("home_goals")) and pd.notna(row.get("away_goals")):
+                hg, ag = int(row["home_goals"]), int(row["away_goals"])
+                if hg > ag:
+                    _known_ko[frozenset({row["home"], row["away"]})] = row["home"]
+                elif ag > hg:
+                    _known_ko[frozenset({row["home"], row["away"]})] = row["away"]
+                # hg == ag → penalty shootout, skip (will be sampled)
+
     groups, fixtures_by_group = derive_groups(group_fixtures)
     n_groups = len(groups)
     n_qualifiers = n_groups * qualifiers_per_group + best_third_places
@@ -458,7 +479,11 @@ def simulate_tournament(
                         return off_r[slot[1]]
                     return off_3[slot_map[mn]]
                 a, b = resolve(slot_a), resolve(slot_b)
-                match_winner[match_num] = sampler.knockout_winner(a, b, neutral_knockout, rng)
+                pair = frozenset({a, b})
+                match_winner[match_num] = (
+                    _known_ko[pair] if pair in _known_ko
+                    else sampler.knockout_winner(a, b, neutral_knockout, rng)
+                )
 
             for t in match_winner.values():
                 count_r16[t] += 1
@@ -466,7 +491,11 @@ def simulate_tournament(
             for match_num in _R16_MATCHES + _QF_MATCHES + _SF_MATCHES + [_FINAL_MATCH]:
                 f1, f2 = _KNOCKOUT_FEEDS[match_num]
                 a, b = match_winner[f1], match_winner[f2]
-                match_winner[match_num] = sampler.knockout_winner(a, b, neutral_knockout, rng)
+                pair = frozenset({a, b})
+                match_winner[match_num] = (
+                    _known_ko[pair] if pair in _known_ko
+                    else sampler.knockout_winner(a, b, neutral_knockout, rng)
+                )
 
             for t in [match_winner[m] for m in _R16_MATCHES]:
                 count_qf[t] += 1

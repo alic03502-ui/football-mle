@@ -12,6 +12,7 @@ from .international import (
     fetch_international_results,
     played_matches,
     world_cup_2026_fixtures,
+    world_cup_2026_knockout_fixtures,
 )
 from .leagues import (
     LEAGUES,
@@ -33,4 +34,5 @@ __all__ = [
     "fetch_international_results",
     "played_matches",
     "world_cup_2026_fixtures",
+    "world_cup_2026_knockout_fixtures",
 ]
