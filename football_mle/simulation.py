@@ -283,6 +283,50 @@ def _allocate_thirds(qualifying_letters: list[str]) -> dict[int, str]:
     return slot_to_letter
 
 
+def _infer_real_slot_map(
+    knockout_fixtures: pd.DataFrame,
+    off_w: dict[str, str],
+    off_r: dict[str, str],
+    off_3: dict[str, str],
+) -> dict[int, str]:
+    """Infer the true FIFA third-place slot assignment from already-played R32 results.
+
+    ``_allocate_thirds`` only guarantees an *eligibility-valid* matching — Annex C
+    actually specifies one fixed slot per qualifying combination, which need not be
+    the matching our bipartite solver happens to find. Once a Round-of-32 match has
+    been played, its real opponent tells us unambiguously which third-place letter
+    occupies that slot; if exactly one letter/slot pair remains unresolved, it is
+    forced by elimination.
+    """
+    slot_map: dict[int, str] = {}
+    if knockout_fixtures is None or knockout_fixtures.empty:
+        return slot_map
+
+    team_to_letter = {team: letter for letter, team in off_3.items()}
+    played_pairs = [(frozenset({row["home"], row["away"]}), row["home"], row["away"])
+                     for _, row in knockout_fixtures.iterrows()]
+
+    third_slots = [(m, sa, sb) for m, sa, sb in _R32_STRUCTURE if sa[0] == "3" or sb[0] == "3"]
+    for match_num, slot_a, slot_b in third_slots:
+        seed_slot = slot_b if slot_a[0] == "3" else slot_a
+        seed_team = off_w[seed_slot[1]] if seed_slot[0] == "1" else off_r[seed_slot[1]]
+        for pair, home, away in played_pairs:
+            if seed_team in pair:
+                opponent = away if home == seed_team else home
+                letter = team_to_letter.get(opponent)
+                if letter is not None:
+                    slot_map[match_num] = letter
+                break
+
+    used = set(slot_map.values())
+    remaining_letters = [l for l in off_3 if l not in used]
+    remaining_slots = [m for m, _, _ in third_slots if m not in slot_map]
+    if len(remaining_letters) == 1 and len(remaining_slots) == 1:
+        slot_map[remaining_slots[0]] = remaining_letters[0]
+
+    return slot_map
+
+
 def _seed_order(n: int) -> list[int]:
     """Standard single-elimination bracket seed order (1-indexed) for ``n`` slots."""
     order = [1]
@@ -461,6 +505,7 @@ def simulate_tournament(
             off_3 = {derived_to_official[s[0]]: s[4] for s in best_thirds}
 
             slot_map = _allocate_thirds(list(off_3.keys()))
+            slot_map.update(_infer_real_slot_map(knockout_fixtures, off_w, off_r, off_3))
 
             match_winner = {}
             for match_num, slot_a, slot_b in _R32_STRUCTURE:
