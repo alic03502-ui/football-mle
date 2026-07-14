@@ -170,14 +170,21 @@ def derive_groups(group_fixtures: pd.DataFrame) -> tuple[dict[str, list[str]], d
     ``(home_goals, away_goals)`` for matches already played (else ``None``).
     Returns ``(groups, fixtures_by_group)``.
     """
+    # 🔧 Filter out rows with NaN team names before processing
+    valid_fixtures = group_fixtures.dropna(subset=["home", "away"])
+    
     adjacency: dict[str, set[str]] = defaultdict(set)
     teams: set[str] = set()
     fixtures: list[tuple[str, str, bool, tuple[int, int] | None]] = []
-    has_neutral = "neutral" in group_fixtures.columns
-    has_results = {"home_goals", "away_goals"}.issubset(group_fixtures.columns)
+    has_neutral = "neutral" in valid_fixtures.columns
+    has_results = {"home_goals", "away_goals"}.issubset(valid_fixtures.columns)
 
-    for _, row in group_fixtures.iterrows():
+    for _, row in valid_fixtures.iterrows():
         home, away = row["home"], row["away"]
+        # Ensure team names are strings
+        home = str(home).strip()
+        away = str(away).strip()
+        
         neutral = bool(row["neutral"]) if has_neutral else False
         result: tuple[int, int] | None = None
         if has_results and pd.notna(row["home_goals"]) and pd.notna(row["away_goals"]):
@@ -187,6 +194,9 @@ def derive_groups(group_fixtures: pd.DataFrame) -> tuple[dict[str, list[str]], d
         teams.update((home, away))
         fixtures.append((home, away, neutral, result))
 
+    # 🔧 Filter out any remaining non-string values
+    teams = {t for t in teams if isinstance(t, str) and t}
+    
     seen: set[str] = set()
     components: list[list[str]] = []
     for team in sorted(teams):
@@ -213,7 +223,8 @@ def derive_groups(group_fixtures: pd.DataFrame) -> tuple[dict[str, list[str]], d
         for team in component:
             team_to_label[team] = label
     for home, away, neutral, result in fixtures:
-        fixtures_by_group[team_to_label[home]].append((home, away, neutral, result))
+        if home in team_to_label and away in team_to_label:
+            fixtures_by_group[team_to_label[home]].append((home, away, neutral, result))
 
     return groups, fixtures_by_group
 
