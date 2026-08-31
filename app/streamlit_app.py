@@ -48,6 +48,14 @@ from football_mle.sources import (  # noqa: E402
 from flags import flag_url  # noqa: E402
 from i18n import LANGUAGES, make_t  # noqa: E402
 from team_names import translate_team  # noqa: E402
+from football_mle.markets import (
+    total_goals_probability,
+    btts_probability,
+    team_goals_probability,
+    double_chance_probabilities,
+    fair_odds,
+    most_likely_scores,
+)
 
 st.set_page_config(page_title="football_mle — Goal prediction", page_icon="⚽", layout="wide")
 
