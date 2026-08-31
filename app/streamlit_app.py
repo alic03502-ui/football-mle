@@ -173,45 +173,319 @@ def score_heatmap(matrix, home: str, away: str, t, max_display: int = 6) -> alt.
     return (heat + text).properties(height=360)
 
 
-def predictor_section(model_fit: FitResult, t, lang: str, allow_neutral: bool = False, default_neutral: bool = False) -> None:
+def predictor_section(
+    model_fit: FitResult,
+    t,
+    lang: str,
+    allow_neutral: bool = False,
+    default_neutral: bool = False,
+) -> None:
+
     st.subheader(t("predictor_title"))
+
     teams = sorted(model_fit.teams)
     fmt = lambda tm: translate_team(tm, lang)
+
     c1, c2, c3 = st.columns([2, 2, 1])
-    home = c1.selectbox(t("home_team"), teams, index=0, format_func=fmt)
-    away = c2.selectbox(t("away_team"), teams, index=min(1, len(teams) - 1), format_func=fmt)
-    neutral = c3.checkbox(t("neutral_venue"), value=default_neutral) if allow_neutral else False
+
+    home = c1.selectbox(
+        t("home_team"),
+        teams,
+        index=0,
+        format_func=fmt,
+    )
+
+    away = c2.selectbox(
+        t("away_team"),
+        teams,
+        index=min(1, len(teams) - 1),
+        format_func=fmt,
+    )
+
+    neutral = (
+        c3.checkbox(
+            t("neutral_venue"),
+            value=default_neutral,
+        )
+        if allow_neutral
+        else False
+    )
 
     if home == away:
         st.info(t("pick_two"))
         return
 
-    home_disp, away_disp = translate_team(home, lang), translate_team(away, lang)
-    prediction = predict_match(model_fit, home, away, max_goals=10, neutral=neutral)
+    home_disp = translate_team(home, lang)
+    away_disp = translate_team(away, lang)
 
-    # Show flag images next to team names using st.image (avoids CSP restrictions).
+    # ==========================================================
+    # ORIGINAL MODEL — UNTOUCHED
+    # ==========================================================
+
+    prediction = predict_match(
+        model_fit,
+        home,
+        away,
+        max_goals=10,
+        neutral=neutral,
+    )
+
+    # ==========================================================
+    # ORIGINAL 1X2 OUTPUT
+    # ==========================================================
+
     fh, fa = flag_url(home, 40), flag_url(away, 40)
-    fi1, fi2, _, fi3, fi4, _ = st.columns([0.15, 1.2, 0.3, 0.15, 1.2, 1])
+
+    fi1, fi2, _, fi3, fi4, _ = st.columns(
+        [0.15, 1.2, 0.3, 0.15, 1.2, 1]
+    )
+
     if fh:
         fi1.image(fh, width=24)
+
     fi2.markdown(f"**{home_disp}**")
+
     if fa:
         fi3.image(fa, width=24)
+
     fi4.markdown(f"**{away_disp}**")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric(f"1 · {home_disp}", f"{100 * prediction.prob_home:.1f}%")
-    m2.metric(f"X · {t('draw')}", f"{100 * prediction.prob_draw:.1f}%")
-    m3.metric(f"2 · {away_disp}", f"{100 * prediction.prob_away:.1f}%")
+
+    m1.metric(
+        f"1 · {home_disp}",
+        f"{100 * prediction.prob_home:.1f}%",
+    )
+
+    m2.metric(
+        f"X · {t('draw')}",
+        f"{100 * prediction.prob_draw:.1f}%",
+    )
+
+    m3.metric(
+        f"2 · {away_disp}",
+        f"{100 * prediction.prob_away:.1f}%",
+    )
+
     m4.metric(
         t("expected_goals"),
-        f"{prediction.expected_home_goals:.2f} – {prediction.expected_away_goals:.2f}",
+        f"{prediction.expected_home_goals:.2f} – "
+        f"{prediction.expected_away_goals:.2f}",
     )
-    matrix = score_matrix(model_fit, home, away, max_goals=10, neutral=neutral)
-    st.altair_chart(score_heatmap(matrix, home_disp, away_disp, t), use_container_width=True)
+
+    # ==========================================================
+    # ORIGINAL SCORE MATRIX — UNTOUCHED
+    # ==========================================================
+
+    matrix = score_matrix(
+        model_fit,
+        home,
+        away,
+        max_goals=10,
+        neutral=neutral,
+    )
+
+    st.altair_chart(
+        score_heatmap(
+            matrix,
+            home_disp,
+            away_disp,
+            t,
+        ),
+        use_container_width=True,
+    )
+
     s = prediction.most_likely_score
-    st.caption(t("most_likely", home=home_disp, hs=s[0], as_=s[1], away=away_disp,
-                 prob=100 * prediction.most_likely_score_prob))
+
+    st.caption(
+        t(
+            "most_likely",
+            home=home_disp,
+            hs=s[0],
+            as_=s[1],
+            away=away_disp,
+            prob=100 * prediction.most_likely_score_prob,
+        )
+    )
+
+    # ==========================================================
+    # NEW: BETTING MARKET ENGINE
+    # ==========================================================
+
+    st.divider()
+    st.subheader("📊 Goal Markets")
+
+    # --------------------------
+    # Total Goals
+    # --------------------------
+
+    total_rows = []
+
+    for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
+
+        over_prob = total_goals_probability(
+            matrix,
+            line,
+            over=True,
+        )
+
+        under_prob = total_goals_probability(
+            matrix,
+            line,
+            over=False,
+        )
+
+        total_rows.append(
+            {
+                "Market": f"Over {line}",
+                "Probability": f"{100 * over_prob:.1f}%",
+                "Fair Odds": f"{fair_odds(over_prob):.2f}",
+            }
+        )
+
+        total_rows.append(
+            {
+                "Market": f"Under {line}",
+                "Probability": f"{100 * under_prob:.1f}%",
+                "Fair Odds": f"{fair_odds(under_prob):.2f}",
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(total_rows),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # --------------------------
+    # BTTS
+    # --------------------------
+
+    st.subheader("⚽ Both Teams To Score")
+
+    btts_yes = btts_probability(matrix, yes=True)
+    btts_no = btts_probability(matrix, yes=False)
+
+    b1, b2 = st.columns(2)
+
+    b1.metric(
+        "BTTS — Yes",
+        f"{100 * btts_yes:.1f}%",
+        f"Fair odds {fair_odds(btts_yes):.2f}",
+    )
+
+    b2.metric(
+        "BTTS — No",
+        f"{100 * btts_no:.1f}%",
+        f"Fair odds {fair_odds(btts_no):.2f}",
+    )
+
+    # --------------------------
+    # Team Goals
+    # --------------------------
+
+    st.subheader("🎯 Team Goals")
+
+    team_rows = []
+
+    for team_name, team_key in [
+        (home_disp, "home"),
+        (away_disp, "away"),
+    ]:
+
+        for line in [0.5, 1.5, 2.5, 3.5]:
+
+            over_prob = team_goals_probability(
+                matrix,
+                team_key,
+                line,
+                over=True,
+            )
+
+            under_prob = team_goals_probability(
+                matrix,
+                team_key,
+                line,
+                over=False,
+            )
+
+            team_rows.append(
+                {
+                    "Team": team_name,
+                    "Market": f"Over {line}",
+                    "Probability": f"{100 * over_prob:.1f}%",
+                    "Fair Odds": f"{fair_odds(over_prob):.2f}",
+                }
+            )
+
+            team_rows.append(
+                {
+                    "Team": team_name,
+                    "Market": f"Under {line}",
+                    "Probability": f"{100 * under_prob:.1f}%",
+                    "Fair Odds": f"{fair_odds(under_prob):.2f}",
+                }
+            )
+
+    st.dataframe(
+        pd.DataFrame(team_rows),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # --------------------------
+    # Double Chance
+    # --------------------------
+
+    st.subheader("🔀 Double Chance")
+
+    dc = double_chance_probabilities(matrix)
+
+    d1, d2, d3 = st.columns(3)
+
+    d1.metric(
+        "1X",
+        f"{100 * dc['1X']:.1f}%",
+        f"Fair odds {fair_odds(dc['1X']):.2f}",
+    )
+
+    d2.metric(
+        "X2",
+        f"{100 * dc['X2']:.1f}%",
+        f"Fair odds {fair_odds(dc['X2']):.2f}",
+    )
+
+    d3.metric(
+        "12",
+        f"{100 * dc['12']:.1f}%",
+        f"Fair odds {fair_odds(dc['12']):.2f}",
+    )
+
+    # --------------------------
+    # Most likely scorelines
+    # --------------------------
+
+    st.subheader("🔢 Most Likely Scores")
+
+    scores = most_likely_scores(matrix, n=10)
+
+    score_rows = []
+
+    for home_goals, away_goals, probability in scores:
+
+        score_rows.append(
+            {
+                "Score": f"{home_goals} - {away_goals}",
+                "Probability": f"{100 * probability:.1f}%",
+                "Fair Odds": f"{fair_odds(probability):.2f}",
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(score_rows),
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 # ---------------------------------------------------------------------------
